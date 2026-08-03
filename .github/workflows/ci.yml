@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/stockroom-api:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/stockroom-api:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/stockroom-api:$IMAGE_TAG $ECR_REGISTRY/stockroom-api:latest
+          docker push $ECR_REGISTRY/stockroom-api:latest
+
+      # NOTE: Veracode Repo Tools inserts an AST scan step here that submits
+      # findings to Trust Authority and records an Asset Snapshot ID.
