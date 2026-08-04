@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*.*.*"]
 
 jobs:
   build-and-push:
@@ -23,15 +24,35 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Extract image tags
+        id: tags
         env:
           ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/stockroom-api:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/stockroom-api:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/stockroom-api:$IMAGE_TAG $ECR_REGISTRY/stockroom-api:latest
-          docker push $ECR_REGISTRY/stockroom-api:latest
+          SHA_TAG=$ECR_REGISTRY/stockroom-api:${{ github.sha }}
+          echo "sha_tag=$SHA_TAG" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION=${{ github.ref_name }}
+            echo "version_tag=$ECR_REGISTRY/stockroom-api:$VERSION" >> $GITHUB_OUTPUT
+            echo "latest_tag=$ECR_REGISTRY/stockroom-api:latest" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build image
+        run: docker build -t ${{ steps.tags.outputs.sha_tag }} .
 
       # NOTE: Veracode Repo Tools inserts an AST scan step here that submits
       # findings to Trust Authority and records an Asset Snapshot ID.
+
+      - name: Push SHA tag
+        run: docker push ${{ steps.tags.outputs.sha_tag }}
+
+      - name: Push semver and latest tags (releases only)
+        if: steps.tags.outputs.is_release == 'true'
+        run: |
+          docker tag ${{ steps.tags.outputs.sha_tag }} ${{ steps.tags.outputs.version_tag }}
+          docker tag ${{ steps.tags.outputs.sha_tag }} ${{ steps.tags.outputs.latest_tag }}
+          docker push ${{ steps.tags.outputs.version_tag }}
+          docker push ${{ steps.tags.outputs.latest_tag }}

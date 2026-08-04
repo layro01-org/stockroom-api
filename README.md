@@ -11,6 +11,108 @@ A warehouse inventory management REST API built with Python 3.12 and FastAPI. Ma
 
 Copy `.env.example` to `.env` and adjust as needed.
 
+## GitHub Actions secrets
+
+The CI workflow (`.github/workflows/ci.yml`) pushes Docker images to Amazon ECR using
+short-lived credentials obtained via OIDC — no long-lived AWS access keys are stored in
+GitHub.
+
+Configure the following in **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | What it is | How to find it |
+| ------ | ---------- | -------------- |
+| `AWS_ROLE_ARN` | ARN of the IAM role GitHub Actions assumes via OIDC to push to ECR | Create an IAM role in AWS with a trust policy for `token.actions.githubusercontent.com` (see below); the ARN looks like `arn:aws:iam::123456789012:role/github-actions-stockroom` |
+| `ECR_REGISTRY` | ECR registry hostname | `<your-12-digit-account-id>.dkr.ecr.<region>.amazonaws.com` — visible in the AWS Console under **Elastic Container Registry → Private registry** |
+
+### Setting up the IAM OIDC trust
+
+A single IAM role is shared by both `stockroom-api` and `stockroom-frontend`. Set the
+same `AWS_ROLE_ARN` secret value in both repositories.
+
+1. In the AWS Console go to **IAM → Identity providers → Add provider**.
+   - Provider type: **OpenID Connect**
+   - Provider URL: `https://token.actions.githubusercontent.com`
+   - Audience: `sts.amazonaws.com`
+   *(Skip if this provider already exists in your account.)*
+
+2. Create an IAM role with the following trust policy, replacing `<ACCOUNT_ID>` and
+   `<ORG>` with your values. The wildcard on the `sub` condition covers all
+   `stockroom-*` repos so you don't need to update it when adding new service repos:
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Principal": {
+           "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+         },
+         "Action": "sts:AssumeRoleWithWebIdentity",
+         "Condition": {
+           "StringEquals": {
+             "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+           },
+           "StringLike": {
+             "token.actions.githubusercontent.com:sub": "repo:<ORG>/stockroom-*:*"
+           }
+         }
+       }
+     ]
+   }
+   ```
+
+3. Attach a permission policy to the role that allows ECR push. The wildcard on the
+   resource covers both `stockroom-api` and `stockroom-frontend` (and any future
+   service repos that follow the same naming convention):
+
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [
+       {
+         "Effect": "Allow",
+         "Action": [
+           "ecr:GetAuthorizationToken"
+         ],
+         "Resource": "*"
+       },
+       {
+         "Effect": "Allow",
+         "Action": [
+           "ecr:BatchCheckLayerAvailability",
+           "ecr:CompleteLayerUpload",
+           "ecr:InitiateLayerUpload",
+           "ecr:PutImage",
+           "ecr:UploadLayerPart",
+           "ecr:BatchGetImage",
+           "ecr:GetDownloadUrlForLayer"
+         ],
+         "Resource": "arn:aws:ecr:<REGION>:<ACCOUNT_ID>:repository/stockroom-*"
+       }
+     ]
+   }
+   ```
+
+---
+
+## Releasing
+
+Versioned releases are driven by Git tags. Pushing a semver tag triggers the CI
+workflow to build a Docker image and push it to ECR tagged with both the version
+and `:latest`:
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+This produces `stockroom-api:v1.2.0` and `stockroom-api:latest` in ECR.
+
+After tagging, update `api_image_tag` in
+[stockroom-deployment/terraform/terraform.tfvars](../stockroom-deployment/terraform/terraform.tfvars)
+and open a PR against `release/prod` to deploy it.
+
 ## Running Locally
 
 ### With Docker Compose (recommended)
