@@ -23,3 +23,8 @@ app.add_middleware(
 app.include_router(categories.router, prefix="/api/v1/categories", tags=["categories"])
 app.include_router(products.router, prefix="/api/v1/products", tags=["products"])
 app.include_router(stock_movements.router, prefix="/api/v1/stock-movements", tags=["stock-movements"])
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
