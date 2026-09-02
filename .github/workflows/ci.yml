@@ -25,6 +25,13 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute commit provenance annotations
+        id: provenance
+        uses: layro01-org/annotate-container-image@v1
+
       - name: Extract image tags
         id: tags
         env:
@@ -41,14 +48,16 @@ jobs:
             echo "is_release=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build image
-        run: docker build -t ${{ steps.tags.outputs.sha_tag }} .
+      - name: Build and push SHA tag
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ${{ steps.tags.outputs.sha_tag }}
+          annotations: ${{ steps.provenance.outputs.annotations }}
 
       # NOTE: Veracode Repo Tools inserts an AST scan step here that submits
       # findings to Trust Authority and records an Asset Snapshot ID.
-
-      - name: Push SHA tag
-        run: docker push ${{ steps.tags.outputs.sha_tag }}
 
       - name: Push semver and latest tags (releases only)
         if: steps.tags.outputs.is_release == 'true'
