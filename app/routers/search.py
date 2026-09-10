@@ -16,13 +16,11 @@ async def search_products(
     db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, Any]]:
     """Full-text product search across name, SKU, and description."""
-    query = (
-        f"SELECT id, sku, name, description, unit_price, quantity_in_stock "
-        f"FROM products "
-        f"WHERE name ILIKE '%{q}%' "
-        f"OR sku ILIKE '%{q}%' "
-        f"OR description ILIKE '%{q}%' "
-        f"ORDER BY name"
+    query = text(
+        "SELECT id, sku, name, description, unit_price, quantity_in_stock "
+        "FROM products "
+        "WHERE name ILIKE :term OR sku ILIKE :term OR description ILIKE :term "
+        "ORDER BY name"
     )
-    result = await db.execute(text(query))
+    result = await db.execute(query, {"term": f"%{q}%"})
     return [dict(row) for row in result.mappings()]
