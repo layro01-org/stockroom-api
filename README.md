@@ -188,6 +188,20 @@ Interactive docs available at `http://localhost:8000/docs`.
 | `PUT`    | `/api/v1/products/{id}` | Update a product                                |
 | `DELETE` | `/api/v1/products/{id}` | Delete a product                                |
 
+### Search — `/api/v1/search`
+
+| Method | Path              | Description                                              |
+|--------|-------------------|----------------------------------------------------------|
+| `GET`  | `/api/v1/search`  | Full-text search across name, SKU, and description (`?q=`) |
+
+**Example:**
+
+```bash
+GET /api/v1/search?q=widget
+```
+
+Returns a JSON array of matching products.
+
 ### Stock Movements — `/api/v1/stock-movements`
 
 | Method | Path                      | Description                                                    |

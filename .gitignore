@@ -5,3 +5,7 @@ __pycache__/
 .venv/
 *.egg-info/
 dist/
+
+.veracode/output
+results.json
+filtered-results.json

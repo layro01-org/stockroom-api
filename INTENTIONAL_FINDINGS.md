@@ -73,11 +73,11 @@ result = await db.execute(query, {"term": f"%{q}%"})
 | **Pinned version** | `2.25.1` |
 | **CVE** | CVE-2023-32681 |
 | **CVSS** | 6.1 (Medium) |
-| **File** | `pyproject.toml` |
+| **File** | `Pipfile` |
 
 ### What SCA vulnerability was introduced
 
-`requests==2.25.1` was added as a pinned dependency in `pyproject.toml`. The pin is intentionally below the patched version.
+`requests = "==2.25.1"` was added as a pinned dependency in `Pipfile`. The pin is intentionally below the patched version.
 
 ### Why the vulnerability is a finding
 
@@ -90,7 +90,7 @@ Patched in `requests==2.31.0`.
 Upgrade the constraint:
 
 ```toml
-"requests>=2.31.0",
+requests = ">=2.31.0"
 ```
 
 ---
