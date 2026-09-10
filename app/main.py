@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import categories, products, stock_movements
+from app.routers import categories, products, search, stock_movements
 
 
 @asynccontextmanager
@@ -22,6 +22,7 @@ app.add_middleware(
 
 app.include_router(categories.router, prefix="/api/v1/categories", tags=["categories"])
 app.include_router(products.router, prefix="/api/v1/products", tags=["products"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["search"])
 app.include_router(stock_movements.router, prefix="/api/v1/stock-movements", tags=["stock-movements"])
 
 
